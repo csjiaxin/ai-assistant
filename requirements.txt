@@ -1,0 +1,53 @@
+# ════════════════════════════════════════════════════════════════════
+# Slack AI Support Agent — Dependencies
+# All core functionality works with FREE, LOCAL models (no API keys).
+# ════════════════════════════════════════════════════════════════════
+
+# ── Slack ────────────────────────────────────────────────────────────
+slack-bolt>=1.18.0
+slack-sdk>=3.27.0
+
+# ── Embeddings (FREE, LOCAL — no API key needed) ─────────────────────
+# Downloads model weights once (~80-440MB depending on model choice)
+sentence-transformers>=3.0.0
+
+# ── LLM — Ollama uses plain HTTP, no extra package needed ────────────
+# Just install Ollama: https://ollama.ai and run: ollama pull llama3.2
+requests>=2.31.0
+
+# ── Vector Store (FREE, LOCAL, zero infrastructure) ──────────────────
+chromadb>=0.5.0
+
+# ── Database ─────────────────────────────────────────────────────────
+sqlalchemy>=2.0.0
+
+# ── Cache (optional — agent works without Redis, just slower) ─────────
+redis>=5.0.0
+
+# ── Scheduler ────────────────────────────────────────────────────────
+APScheduler>=3.10.0
+
+# ── Config ───────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
+
+# ── HTTP ─────────────────────────────────────────────────────────────
+# (already pulled in by slack-sdk, listed explicitly for clarity)
+aiohttp>=3.9.0
+
+# ── Observability (optional) ─────────────────────────────────────────
+prometheus-client>=0.20.0
+
+# ── Optional: cloud vector stores (uncomment if needed) ──────────────
+# pinecone-client>=3.0.0
+# qdrant-client>=1.9.0
+
+# ── Optional: OpenAI (only if you want cloud LLM / embeddings) ───────
+# openai>=1.30.0
+
+# ── Optional: PostgreSQL (SQLite is used by default) ─────────────────
+# psycopg2-binary>=2.9.0
+
+# ── Dev / Testing ─────────────────────────────────────────────────────
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-mock>=3.14.0

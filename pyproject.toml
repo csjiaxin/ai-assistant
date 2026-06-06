@@ -1,0 +1,71 @@
+[project]
+name = "slack-ai-support-agent"
+version = "0.1.0"
+description = "RAG-based AI agent that learns from Slack thread history and answers new questions locally using free models"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Slack
+    "slack-bolt>=1.18.0",
+    "slack-sdk>=3.27.0",
+    # Embeddings (free, local)
+    "sentence-transformers>=3.0.0",
+    # LLM via Ollama (plain HTTP, no extra client package)
+    "requests>=2.31.0",
+    # Vector store (free, local)
+    "chromadb>=0.5.0",
+    # Database
+    "sqlalchemy>=2.0.0",
+    # Cache (optional — gracefully disabled if Redis unavailable)
+    "redis>=5.0.0",
+    # Scheduler
+    "APScheduler>=3.10.0",
+    # Config
+    "python-dotenv>=1.0.0",
+    # HTTP async (slack-sdk dependency)
+    "aiohttp>=3.9.0",
+    # Observability (optional)
+    "prometheus-client>=0.20.0",
+]
+
+[project.optional-dependencies]
+# Cloud vector stores (uncomment in requirements.txt if needed)
+pinecone = ["pinecone-client>=3.0.0"]
+qdrant = ["qdrant-client>=1.9.0"]
+# Cloud LLM / embeddings
+openai = ["openai>=1.30.0"]
+# PostgreSQL
+postgres = ["psycopg2-binary>=2.9.0"]
+# Dev & testing
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.14.0",
+]
+
+[project.scripts]
+slack-agent = "main:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.14.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

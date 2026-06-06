@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Slack AI Support Agent – Design Document</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --accent3: #f78166;
+      --accent4: #d2a8ff;
+      --accent5: #ffa657;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a2332 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 48px 40px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(88,166,255,0.12), transparent);
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(88,166,255,0.15);
+      border: 1px solid rgba(88,166,255,0.3);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    header h1 {
+      font-size: 2.6rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #58a6ff, #bc8cff, #3fb950);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      position: relative;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-top: 12px;
+      max-width: 620px;
+      margin-left: auto;
+      margin-right: auto;
+      position: relative;
+    }
+    .meta-tags { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .tag {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── LAYOUT ── */
+    main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── SECTION ── */
+    section { margin-bottom: 60px; }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 1.05rem; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+    p { color: var(--muted); margin-bottom: 12px; font-size: 0.95rem; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 22px 24px;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+    .card.highlight { border-color: var(--accent); }
+    .card-icon { font-size: 1.6rem; margin-bottom: 10px; }
+    .card h3 { font-size: 0.95rem; }
+    .card p { font-size: 0.85rem; margin-bottom: 0; }
+
+    /* ── ARCHITECTURE DIAGRAM ── */
+    .arch-diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 24px;
+      overflow-x: auto;
+    }
+
+    /* SVG-based flow diagram rendered inline */
+    .flow-svg { width: 100%; max-width: 960px; display: block; margin: 0 auto; }
+
+    /* ── FLOW STEPS ── */
+    .flow-steps { display: flex; flex-direction: column; gap: 0; }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    .step-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    .step-line { width: 2px; flex: 1; min-height: 28px; background: var(--border); margin: 4px 0; }
+    .flow-step:last-child .step-line { display: none; }
+    .step-body { padding-top: 6px; padding-bottom: 24px; }
+    .step-body h3 { margin-bottom: 4px; font-size: 0.97rem; }
+    .step-body p { margin-bottom: 0; font-size: 0.86rem; }
+
+    /* ── COMPONENT TABLE ── */
+    .comp-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .comp-table th, .comp-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    .comp-table th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; }
+    .comp-table td:first-child { color: var(--accent); font-weight: 600; }
+    .comp-table tr:last-child td { border-bottom: none; }
+
+    /* ── CODE BLOCK ── */
+    .code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      color: var(--text);
+    }
+    .code-block .kw { color: #ff7b72; }
+    .code-block .fn { color: #d2a8ff; }
+    .code-block .str { color: #a5d6ff; }
+    .code-block .cmt { color: #8b949e; }
+    .code-block .num { color: #79c0ff; }
+    .code-block .cls { color: #ffa657; }
+
+    /* ── TIMELINE ── */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .pipe-step {
+      padding: 20px 16px;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .pipe-step:last-child { border-right: none; }
+    .pipe-step::after {
+      content: "→";
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 1rem;
+      z-index: 1;
+    }
+    .pipe-step:last-child::after { display: none; }
+    .pipe-icon { font-size: 1.4rem; margin-bottom: 8px; }
+    .pipe-step h4 { font-size: 0.82rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .pipe-step p { font-size: 0.78rem; color: var(--muted); margin: 0; }
+
+    /* ── COLORS ── */
+    .blue { color: var(--accent); } .green { color: var(--accent2); }
+    .red { color: var(--accent3); } .purple { color: var(--accent4); }
+    .orange { color: var(--accent5); }
+    .bg-blue { background: rgba(88,166,255,0.12); border-color: rgba(88,166,255,0.3); }
+    .bg-green { background: rgba(63,185,80,0.12); border-color: rgba(63,185,80,0.3); }
+    .bg-purple { background: rgba(210,168,255,0.12); border-color: rgba(210,168,255,0.3); }
+    .bg-orange { background: rgba(255,166,87,0.12); border-color: rgba(255,166,87,0.3); }
+    .bg-red { background: rgba(247,129,102,0.12); border-color: rgba(247,129,102,0.3); }
+
+    /* ── CALLOUT ── */
+    .callout {
+      border-left: 3px solid var(--accent);
+      background: rgba(88,166,255,0.07);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .callout strong { color: var(--text); }
+
+    /* ── VECTOR DB VIZ ── */
+    .vdb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+    .vdb-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .vdb-card .id { font-size: 10px; color: var(--muted); margin-bottom: 6px; font-family: monospace; }
+    .vdb-card .question { font-size: 0.82rem; color: var(--text); margin-bottom: 8px; font-weight: 500; }
+    .vdb-card .vec { display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 8px; }
+    .vdb-bar {
+      height: 14px;
+      border-radius: 2px;
+      background: rgba(88,166,255,0.5);
+    }
+    .vdb-card .meta { font-size: 10px; color: var(--muted); }
+
+    /* ── SCORE PILLS ── */
+    .score { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .score-high { background: rgba(63,185,80,0.2); color: var(--accent2); }
+    .score-mid { background: rgba(255,166,87,0.2); color: var(--accent5); }
+    .score-low { background: rgba(139,148,158,0.2); color: var(--muted); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.8rem; }
+      .pipeline { grid-template-columns: 1fr; }
+      .pipe-step::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -12px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+<header>
+  <div class="badge">AI Agent Design</div>
+  <h1>Slack Support AI Agent</h1>
+  <p>An intelligent agent that learns from historical Slack thread discussions and generates accurate, context-aware answers to new channel questions.</p>
+  <div class="meta-tags">
+    <span class="tag">🤖 RAG Architecture</span>
+    <span class="tag">💬 Slack Integration</span>
+    <span class="tag">🔍 Semantic Search</span>
+    <span class="tag">🧠 Vector Embeddings</span>
+    <span class="tag">🐍 Python</span>
+    <span class="tag">📦 OpenAI / Llama</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ═══════════════════════════ OVERVIEW ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Overview</div>
+    <h2>Problem &amp; Solution</h2>
+    <div class="callout">
+      <strong>Problem:</strong> In busy Slack channels (e.g. <code>#disturbed</code>), the same questions get asked repeatedly. Valuable answers buried in threads are never surfaced. Engineers waste time giving duplicate answers.
+    </div>
+    <div class="callout" style="border-color: var(--accent2); background: rgba(63,185,80,0.07);">
+      <strong>Solution:</strong> An AI agent that <strong>ingests all historical Slack thread Q&amp;A</strong>, encodes them as semantic vectors, and — when a new question arrives — <strong>retrieves the most relevant past discussions</strong> as context for an LLM to generate a high-quality, grounded answer.
+    </div>
+
+    <div class="card-grid" style="margin-top: 24px;">
+      <div class="card bg-blue">
+        <div class="card-icon">📚</div>
+        <h3 class="blue">Historical Learning</h3>
+        <p>Continuously indexes past questions, answers, and thread reactions from Slack history into a searchable vector store.</p>
+      </div>
+      <div class="card bg-green">
+        <div class="card-icon">🔍</div>
+        <h3 class="green">Semantic Retrieval</h3>
+        <p>Uses embedding similarity (cosine) to find the top-K most relevant historical discussions for any new question.</p>
+      </div>
+      <div class="card bg-purple">
+        <div class="card-icon">🧠</div>
+        <h3 class="purple">LLM Generation</h3>
+        <p>Passes retrieved context + question to an LLM (GPT-4o / Llama 3) to synthesize a grounded, accurate answer.</p>
+      </div>
+      <div class="card bg-orange">
+        <div class="card-icon">⚡</div>
+        <h3 class="orange">Real-time Response</h3>
+        <p>Listens for new messages via Slack Bolt / Event API and posts threaded answers within seconds.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ ARCHITECTURE ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Architecture</div>
+    <h2>System Architecture Diagram</h2>
+
+    <div class="arch-diagram">
+      <svg class="flow-svg" viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+        <!-- Background grid -->
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff"/>
+          </marker>
+          <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#3fb950"/>
+          </marker>
+          <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#d2a8ff"/>
+          </marker>
+          <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#ffa657"/>
+          </marker>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- ── LANE BACKGROUNDS ── -->
+        <!-- Ingestion lane -->
+        <rect x="10" y="10" width="430" height="270" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+        <text x="30" y="35" fill="#58a6ff" font-size="10" font-weight="700" letter-spacing="2" text-transform="uppercase">INGESTION PIPELINE</text>
+
+        <!-- Inference lane -->
+        <rect x="10" y="300" width="430" height="310" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+        <text x="30" y="325" fill="#3fb950" font-size="10" font-weight="700" letter-spacing="2">REAL-TIME INFERENCE PIPELINE</text>
+
+        <!-- Shared services -->
+        <rect x="460" y="10" width="490" height="600" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+        <text x="480" y="35" fill="#d2a8ff" font-size="10" font-weight="700" letter-spacing="2">SHARED SERVICES &amp; STORAGE</text>
+
+        <!-- ── INGESTION NODES ── -->
+        <!-- Slack Historical Data -->
+        <rect x="30" y="50" width="150" height="64" rx="8" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5" filter="url(#glow)"/>
+        <text x="105" y="75" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="700">💬 Slack</text>
+        <text x="105" y="91" text-anchor="middle" fill="#8b949e" font-size="10">Historical Channel</text>
+        <text x="105" y="104" text-anchor="middle" fill="#8b949e" font-size="10">Messages &amp; Threads</text>
+
+        <!-- Ingestion Worker -->
+        <rect x="220" y="50" width="190" height="64" rx="8" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="315" y="75" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">⚙️ Ingestion Worker</text>
+        <text x="315" y="91" text-anchor="middle" fill="#8b949e" font-size="10">Thread Fetcher</text>
+        <text x="315" y="104" text-anchor="middle" fill="#8b949e" font-size="10">Q&amp;A Extractor</text>
+
+        <!-- Arrow: Slack → Worker -->
+        <line x1="180" y1="82" x2="218" y2="82" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Chunker -->
+        <rect x="30" y="155" width="150" height="64" rx="8" fill="#0d1117" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="105" y="180" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">✂️ Chunker</text>
+        <text x="105" y="196" text-anchor="middle" fill="#8b949e" font-size="10">Split by thread</text>
+        <text x="105" y="209" text-anchor="middle" fill="#8b949e" font-size="10">Q+A pairs</text>
+
+        <!-- Embedder -->
+        <rect x="220" y="155" width="190" height="64" rx="8" fill="#0d1117" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="315" y="180" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">🔢 Embedder</text>
+        <text x="315" y="196" text-anchor="middle" fill="#8b949e" font-size="10">text-embedding-3-small</text>
+        <text x="315" y="209" text-anchor="middle" fill="#8b949e" font-size="10">1536-dim vectors</text>
+
+        <!-- Arrows: Worker→Chunker, Chunker→Embedder, Worker→Embedder path -->
+        <line x1="315" y1="114" x2="315" y2="153" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+        <line x1="105" y1="114" x2="105" y2="153" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+        <line x1="180" y1="187" x2="218" y2="187" stroke="#ffa657" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+        <!-- ── INFERENCE NODES ── -->
+        <!-- New Question -->
+        <rect x="30" y="345" width="150" height="64" rx="8" fill="#0d1117" stroke="#3fb950" stroke-width="1.5" filter="url(#glow)"/>
+        <text x="105" y="370" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="700">❓ New Question</text>
+        <text x="105" y="386" text-anchor="middle" fill="#8b949e" font-size="10">Slack Event API</text>
+        <text x="105" y="399" text-anchor="middle" fill="#8b949e" font-size="10">@bot mention</text>
+
+        <!-- Query Embedder -->
+        <rect x="220" y="345" width="190" height="64" rx="8" fill="#0d1117" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="315" y="370" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">🔢 Query Embed</text>
+        <text x="315" y="386" text-anchor="middle" fill="#8b949e" font-size="10">Embed new question</text>
+        <text x="315" y="399" text-anchor="middle" fill="#8b949e" font-size="10">same model</text>
+
+        <!-- Arrow: New Q → Query Embed -->
+        <line x1="180" y1="377" x2="218" y2="377" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+        <!-- Retriever -->
+        <rect x="30" y="455" width="150" height="64" rx="8" fill="#0d1117" stroke="#d2a8ff" stroke-width="1.5"/>
+        <text x="105" y="480" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">🔍 Retriever</text>
+        <text x="105" y="496" text-anchor="middle" fill="#8b949e" font-size="10">ANN cosine search</text>
+        <text x="105" y="509" text-anchor="middle" fill="#8b949e" font-size="10">Top-K = 5</text>
+
+        <!-- LLM -->
+        <rect x="220" y="455" width="190" height="64" rx="8" fill="#0d1117" stroke="#d2a8ff" stroke-width="1.5" filter="url(#glow)"/>
+        <text x="315" y="480" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">🧠 LLM</text>
+        <text x="315" y="496" text-anchor="middle" fill="#8b949e" font-size="10">GPT-4o / Llama 3</text>
+        <text x="315" y="509" text-anchor="middle" fill="#8b949e" font-size="10">Prompt + Context</text>
+
+        <!-- Answer Post -->
+        <rect x="30" y="560" width="380" height="40" rx="8" fill="#0d1117" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="220" y="585" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="700">✅ Post Answer to Slack Thread + Sources</text>
+
+        <!-- Arrows inference -->
+        <line x1="315" y1="409" x2="315" y2="453" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow-green)"/>
+        <line x1="105" y1="409" x2="105" y2="453" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow-green)"/>
+        <line x1="180" y1="487" x2="218" y2="487" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+        <line x1="315" y1="519" x2="315" y2="540" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+        <line x1="315" y1="540" x2="220" y2="560" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+        <line x1="105" y1="519" x2="105" y2="560" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+        <!-- ── SHARED SERVICES ── -->
+        <!-- Vector DB -->
+        <rect x="480" y="50" width="210" height="120" rx="8" fill="#0d1117" stroke="#d2a8ff" stroke-width="1.5"/>
+        <text x="585" y="80" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="700">🗄️ Vector Store</text>
+        <text x="585" y="100" text-anchor="middle" fill="#8b949e" font-size="10">Chroma / Pinecone / Qdrant</text>
+        <text x="585" y="115" text-anchor="middle" fill="#8b949e" font-size="10">Metadata: ts, user, channel</text>
+        <text x="585" y="130" text-anchor="middle" fill="#8b949e" font-size="10">thread_url, reaction_score</text>
+        <text x="585" y="150" text-anchor="middle" fill="#8b949e" font-size="10">Fast ANN index (HNSW)</text>
+
+        <!-- Message DB -->
+        <rect x="710" y="50" width="220" height="120" rx="8" fill="#0d1117" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="820" y="80" text-anchor="middle" fill="#ffa657" font-size="13" font-weight="700">📦 Message Store</text>
+        <text x="820" y="100" text-anchor="middle" fill="#8b949e" font-size="10">SQLite / PostgreSQL</text>
+        <text x="820" y="115" text-anchor="middle" fill="#8b949e" font-size="10">Raw thread text</text>
+        <text x="820" y="130" text-anchor="middle" fill="#8b949e" font-size="10">Q&amp;A pairs, metadata</text>
+        <text x="820" y="150" text-anchor="middle" fill="#8b949e" font-size="10">Deduplication index</text>
+
+        <!-- Cache -->
+        <rect x="480" y="195" width="450" height="80" rx="8" fill="#0d1117" stroke="#f78166" stroke-width="1.5"/>
+        <text x="705" y="225" text-anchor="middle" fill="#f78166" font-size="13" font-weight="700">⚡ Redis Cache</text>
+        <text x="705" y="245" text-anchor="middle" fill="#8b949e" font-size="10">Cache recent query embeddings + top-K results (TTL: 1h)</text>
+        <text x="705" y="260" text-anchor="middle" fill="#8b949e" font-size="10">Deduplicate identical questions in a burst window</text>
+
+        <!-- Scheduler -->
+        <rect x="480" y="300" width="450" height="80" rx="8" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="705" y="330" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="700">🕐 Scheduler / Sync Job</text>
+        <text x="705" y="350" text-anchor="middle" fill="#8b949e" font-size="10">Periodic re-ingestion: every 15 min (new threads)</text>
+        <text x="705" y="365" text-anchor="middle" fill="#8b949e" font-size="10">Nightly full re-index with reaction score weighting</text>
+
+        <!-- Feedback loop -->
+        <rect x="480" y="405" width="450" height="80" rx="8" fill="#0d1117" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="705" y="435" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="700">👍 Feedback Collector</text>
+        <text x="705" y="455" text-anchor="middle" fill="#8b949e" font-size="10">Collect emoji reactions (👍/👎) on bot answers</text>
+        <text x="705" y="470" text-anchor="middle" fill="#8b949e" font-size="10">Adjust vector weights &amp; fine-tune retrieval ranking</text>
+
+        <!-- Monitoring -->
+        <rect x="480" y="510" width="450" height="80" rx="8" fill="#0d1117" stroke="#8b949e" stroke-width="1.5"/>
+        <text x="705" y="540" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700">📊 Observability</text>
+        <text x="705" y="560" text-anchor="middle" fill="#8b949e" font-size="10">Latency, retrieval quality, answer accuracy metrics</text>
+        <text x="705" y="575" text-anchor="middle" fill="#8b949e" font-size="10">Prometheus + Grafana / Datadog</text>
+
+        <!-- ── CROSS ARROWS ── -->
+        <!-- Embedder → Vector Store -->
+        <line x1="410" y1="175" x2="478" y2="110" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-orange)"/>
+        <!-- Retriever ↔ Vector Store -->
+        <line x1="410" y1="487" x2="478" y2="110" stroke="#d2a8ff" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="445" y="320" fill="#d2a8ff" font-size="9" transform="rotate(-72, 445, 320)">query</text>
+        <!-- Retriever → Message Store -->
+        <line x1="180" y1="487" x2="478" y2="200" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,3"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ PIPELINE ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Data Flow</div>
+    <h2>Two Core Pipelines</h2>
+
+    <h3 style="margin-bottom:14px; color: var(--accent)">① Ingestion Pipeline (Batch / Scheduled)</h3>
+    <div class="pipeline" style="margin-bottom:32px;">
+      <div class="pipe-step">
+        <div class="pipe-icon">💬</div>
+        <h4>Slack History Pull</h4>
+        <p>conversations.history + replies API, paginated, all threads</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🧹</div>
+        <h4>Parse &amp; Clean</h4>
+        <p>Extract Q (root msg) + A (thread replies), strip bots, filter noise</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">✂️</div>
+        <h4>Chunk &amp; Score</h4>
+        <p>Combine Q+A into chunks, weight by 👍 reactions</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🔢</div>
+        <h4>Embed</h4>
+        <p>text-embedding-3-small → 1536-dim float vectors</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🗄️</div>
+        <h4>Upsert</h4>
+        <p>Store vectors + metadata in Chroma / Pinecone</p>
+      </div>
+    </div>
+
+    <h3 style="margin-bottom:14px; color: var(--accent2)">② Inference Pipeline (Real-time)</h3>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-icon">❓</div>
+        <h4>New Question</h4>
+        <p>Slack Event API / app_mention, message in monitored channel</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🔢</div>
+        <h4>Embed Query</h4>
+        <p>Same embedding model, cache hit check first</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🔍</div>
+        <h4>Retrieve Top-K</h4>
+        <p>ANN search → top 5 Q&amp;A pairs by cosine similarity</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">📝</div>
+        <h4>Build Prompt</h4>
+        <p>System prompt + retrieved context + new question</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🧠</div>
+        <h4>LLM Generate</h4>
+        <p>GPT-4o / Llama 3 → streaming response</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-icon">✅</div>
+        <h4>Post Answer</h4>
+        <p>Reply in thread with answer + source links</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ VECTOR DB VIZ ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Storage</div>
+    <h2>Vector Store – Sample Records</h2>
+    <p>Each indexed document represents a Slack thread (question + all replies merged), stored with its embedding vector and rich metadata for filtering and ranking.</p>
+
+    <div class="vdb-grid">
+      <div class="vdb-card">
+        <div class="id">id: thread_C04AB_1710012345</div>
+        <div class="question">How do I configure the retry policy for our Kafka consumer?</div>
+        <div class="vec">
+          <div class="vdb-bar" style="width:52px"></div>
+          <div class="vdb-bar" style="width:34px; opacity:.7"></div>
+          <div class="vdb-bar" style="width:61px; opacity:.5"></div>
+          <div class="vdb-bar" style="width:28px; opacity:.8"></div>
+          <div class="vdb-bar" style="width:45px; opacity:.4"></div>
+        </div>
+        <div class="meta">👍 12 · #platform · 2024-03-10 · <span class="score score-high">0.97</span></div>
+      </div>
+      <div class="vdb-card">
+        <div class="id">id: thread_C04AB_1709998712</div>
+        <div class="question">Why is my service throwing 504s in prod? Load balancer timeout?</div>
+        <div class="vec">
+          <div class="vdb-bar" style="width:30px; background:rgba(63,185,80,0.5)"></div>
+          <div class="vdb-bar" style="width:58px; opacity:.6; background:rgba(63,185,80,0.5)"></div>
+          <div class="vdb-bar" style="width:42px; opacity:.9; background:rgba(63,185,80,0.5)"></div>
+          <div class="vdb-bar" style="width:70px; opacity:.5; background:rgba(63,185,80,0.5)"></div>
+        </div>
+        <div class="meta">👍 8 · #incidents · 2024-03-09 · <span class="score score-high">0.91</span></div>
+      </div>
+      <div class="vdb-card">
+        <div class="id">id: thread_C04AB_1709901234</div>
+        <div class="question">What's the correct way to rotate secrets in Vault for staging?</div>
+        <div class="vec">
+          <div class="vdb-bar" style="width:44px; background:rgba(210,168,255,0.5)"></div>
+          <div class="vdb-bar" style="width:22px; opacity:.7; background:rgba(210,168,255,0.5)"></div>
+          <div class="vdb-bar" style="width:66px; opacity:.4; background:rgba(210,168,255,0.5)"></div>
+          <div class="vdb-bar" style="width:38px; opacity:.8; background:rgba(210,168,255,0.5)"></div>
+        </div>
+        <div class="meta">👍 5 · #security · 2024-03-08 · <span class="score score-mid">0.76</span></div>
+      </div>
+      <div class="vdb-card">
+        <div class="id">id: thread_C04AB_1709850000</div>
+        <div class="question">CI pipeline failing on Docker build step — out of disk space?</div>
+        <div class="vec">
+          <div class="vdb-bar" style="width:38px; background:rgba(255,166,87,0.5)"></div>
+          <div class="vdb-bar" style="width:55px; opacity:.6; background:rgba(255,166,87,0.5)"></div>
+          <div class="vdb-bar" style="width:27px; opacity:.9; background:rgba(255,166,87,0.5)"></div>
+        </div>
+        <div class="meta">👍 3 · #devops · 2024-03-07 · <span class="score score-low">0.58</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ STEP BY STEP ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Workflow</div>
+    <h2>Step-by-Step Inference Flow</h2>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-side">
+          <div class="step-num bg-blue" style="background:rgba(88,166,255,0.2); color:#58a6ff;">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-body">
+          <h3>🎤 Question Arrives in Slack</h3>
+          <p>A user posts a question in <code>#disturbed</code> (or any monitored channel). The Slack Bolt app receives the <code>message</code> event via Event API webhook. Questions can also be triggered by <code>@bot-mention</code>.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-side">
+          <div class="step-num" style="background:rgba(88,166,255,0.2); color:#58a6ff;">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-body">
+          <h3>⚡ Cache Check</h3>
+          <p>Redis cache is checked for an identical or very similar recent query. If a cache hit is found (within TTL), the cached answer is returned immediately — saving LLM cost and latency.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-side">
+          <div class="step-num" style="background:rgba(255,166,87,0.2); color:#ffa657;">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-body">
+          <h3>🔢 Embed the Question</h3>
+          <p>The question text is passed to the embedding model (OpenAI <code>text-embedding-3-small</code> or a local sentence-transformer). A 1536-dimensional float vector is produced representing the semantic meaning of the question.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-side">
+          <div class="step-num" style="background:rgba(210,168,255,0.2); color:#d2a8ff;">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-body">
+          <h3>🔍 ANN Vector Search (Top-K Retrieval)</h3>
+          <p>The query vector is used to search the vector store (Chroma / Pinecone / Qdrant) using approximate nearest-neighbor (HNSW index). The top 5 most semantically similar historical Q&amp;A threads are returned along with their similarity scores and metadata.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-side">
+          <div class="step-num" style="background:rgba(210,168,255,0.2); color:#d2a8ff;">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-body">
+          <h3>📝 Prompt Construction</h3>
+          <p>A structured prompt is built containing: <strong>system instructions</strong> (persona, constraints), <strong>retrieved context</strong> (top-K Q&amp;A pairs with scores and source links), and the <strong>new question</strong>. The LLM is instructed to cite sources and acknowledge uncertainty.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-side">
+          <div class="step-num" style="background:rgba(63,185,80,0.2); color:#3fb950;">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-body">
+          <h3>🧠 LLM Generation</h3>
+          <p>The prompt is sent to the LLM (GPT-4o via OpenAI API or self-hosted Llama 3 via Ollama). The model synthesizes a grounded answer using the retrieved context, adding its own reasoning where appropriate. Streaming is used for fast time-to-first-token.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-side">
+          <div class="step-num" style="background:rgba(63,185,80,0.2); color:#3fb950;">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-body">
+          <h3>✅ Post Answer to Thread</h3>
+          <p>The generated answer is posted as a threaded reply in Slack. Source links (deep links to original Slack messages) are appended. The answer also gets reaction buttons (👍/👎) for feedback collection. The response is cached in Redis.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ COMPONENTS ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Components</div>
+    <h2>Component Reference</h2>
+    <div class="card">
+      <table class="comp-table">
+        <thead>
+          <tr><th>Component</th><th>Technology</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Slack App</td><td>slack-bolt (Python)</td><td>Receive events, post replies, collect reactions</td></tr>
+          <tr><td>Ingestion Worker</td><td>Python + asyncio</td><td>Fetch &amp; process all historical Slack threads</td></tr>
+          <tr><td>Embedding Model</td><td>OpenAI text-embedding-3-small / sentence-transformers</td><td>Encode text as semantic vectors</td></tr>
+          <tr><td>Vector Store</td><td>ChromaDB (local) / Pinecone / Qdrant (cloud)</td><td>Store &amp; search embedding vectors</td></tr>
+          <tr><td>Message Store</td><td>SQLite (dev) / PostgreSQL (prod)</td><td>Persist raw thread data, metadata, dedup</td></tr>
+          <tr><td>Cache</td><td>Redis</td><td>Cache query embeddings &amp; answers (TTL-based)</td></tr>
+          <tr><td>LLM</td><td>GPT-4o (OpenAI) / Llama 3 (Ollama)</td><td>Generate grounded answers from context</td></tr>
+          <tr><td>Scheduler</td><td>APScheduler / cron</td><td>Periodic re-ingestion of new Slack threads</td></tr>
+          <tr><td>Feedback Loop</td><td>Slack reaction events</td><td>Collect 👍/👎 to improve ranking over time</td></tr>
+          <tr><td>Observability</td><td>Prometheus + Grafana</td><td>Latency, hit rate, accuracy dashboards</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ PROMPT ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Prompt Engineering</div>
+    <h2>LLM Prompt Template</h2>
+    <div class="code-block"><span class="cmt"># System Prompt</span>
+<span class="kw">SYSTEM</span> = <span class="str">"""
+You are a helpful AI support assistant for a software engineering team.
+You have access to historical Q&amp;A discussions from our Slack channels.
+Your job is to answer the new question using the provided context.
+
+Rules:
+- Base your answer primarily on the provided context
+- Cite relevant sources using [Source N] notation
+- If context is insufficient, say so clearly — do not hallucinate
+- Keep answers concise but complete
+- Use markdown formatting for code snippets and lists
+"""</span>
+
+<span class="cmt"># Context Injection (top-K retrieved Q&amp;As)</span>
+<span class="kw">CONTEXT_TEMPLATE</span> = <span class="str">"""
+--- Historical Context ---
+{%- for i, item in enumerate(retrieved_items) %}
+
+[Source {{ i+1 }}] (similarity: {{ item.score:.2f }}, 👍 {{ item.reactions }})
+Thread: {{ item.slack_url }}
+Q: {{ item.question }}
+A: {{ item.answer }}
+{%- endfor %}
+--- End Context ---
+"""</span>
+
+<span class="cmt"># Final User Message</span>
+<span class="kw">USER_MSG</span> = <span class="str">"""
+New Question: {{ question }}
+
+Please answer using the context above. Cite sources where relevant.
+"""</span></div>
+  </section>
+
+  <!-- ═══════════════════════════ LOCAL MODEL STACK ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Free Local Stack</div>
+    <h2>🆓 100% Free &amp; Local — No API Keys Required</h2>
+    <div class="callout" style="border-color: var(--accent2); background: rgba(63,185,80,0.07);">
+      <strong>Default configuration runs entirely on your machine.</strong> No OpenAI key, no cloud costs, no data leaving your network. Models download once from HuggingFace / Ollama registries.
+    </div>
+
+    <h3 style="margin: 20px 0 12px; color: var(--accent4)">Embedding Models (sentence-transformers, HuggingFace — all free)</h3>
+    <div class="card" style="margin-bottom:20px;">
+      <table class="comp-table">
+        <thead><tr><th>Set via EMBEDDING_MODEL=</th><th>Full Model ID</th><th>Dim</th><th>Size</th><th>Best For</th></tr></thead>
+        <tbody>
+          <tr><td>minilm <span style="font-size:10px;color:var(--accent2)">✓ default</span></td><td>all-MiniLM-L6-v2</td><td>384</td><td>~80 MB</td><td>Fastest, great for most use cases</td></tr>
+          <tr><td>bge-small</td><td>BAAI/bge-small-en-v1.5</td><td>384</td><td>~130 MB</td><td>Best retrieval quality at small size</td></tr>
+          <tr><td>bge-base</td><td>BAAI/bge-base-en-v1.5</td><td>768</td><td>~440 MB</td><td>Excellent retrieval, higher accuracy</td></tr>
+          <tr><td>mpnet</td><td>all-mpnet-base-v2</td><td>768</td><td>~420 MB</td><td>Highest semantic quality</td></tr>
+          <tr><td>e5-small</td><td>intfloat/e5-small-v2</td><td>384</td><td>~130 MB</td><td>Multilingual-ready</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin: 0 0 12px; color: var(--accent5)">LLM Models (Ollama — free local inference, runs on CPU or GPU)</h3>
+    <div class="card" style="margin-bottom:20px;">
+      <table class="comp-table">
+        <thead><tr><th>Set via LLM_MODEL=</th><th>Ollama Model</th><th>Download</th><th>Min RAM</th><th>Best For</th></tr></thead>
+        <tbody>
+          <tr><td>llama3 <span style="font-size:10px;color:var(--accent2)">✓ default</span></td><td>llama3.2</td><td>~2 GB</td><td>4 GB</td><td>Best balance speed &amp; quality</td></tr>
+          <tr><td>llama3-big</td><td>llama3.1:8b</td><td>~5 GB</td><td>8 GB</td><td>Higher quality answers</td></tr>
+          <tr><td>mistral</td><td>mistral</td><td>~4 GB</td><td>8 GB</td><td>Excellent for Q&amp;A &amp; reasoning</td></tr>
+          <tr><td>gemma2</td><td>gemma2:2b</td><td>~1.6 GB</td><td>3 GB</td><td>Fastest, lowest RAM</td></tr>
+          <tr><td>phi3</td><td>phi3.5</td><td>~2.2 GB</td><td>4 GB</td><td>Technical &amp; code questions</td></tr>
+          <tr><td>qwen</td><td>qwen2.5:3b</td><td>~2 GB</td><td>4 GB</td><td>Multilingual support</td></tr>
+          <tr><td>deepseek</td><td>deepseek-r1:7b</td><td>~4 GB</td><td>8 GB</td><td>Strong reasoning &amp; analysis</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin: 0 0 12px; color: var(--accent)">Quick Setup (run once)</h3>
+    <div class="code-block"><span class="cmt"># 1. Install Ollama (local LLM server — free)</span>
+<span class="cmt">#    macOS:</span>  brew install ollama
+<span class="cmt">#    Linux:</span>  curl -fsSL https://ollama.ai/install.sh | sh
+
+<span class="cmt"># 2. Pull a model (downloads once ~2-5GB)</span>
+ollama pull llama3.2          <span class="cmt"># default — recommended</span>
+
+<span class="cmt"># 3. One-command automated setup</span>
+bash setup_local.sh           <span class="cmt"># installs deps, pulls model, downloads embedder</span>
+
+<span class="cmt"># 4. Only Slack credentials needed in .env (models already defaulted)</span>
+cp .env.example .env
+<span class="cmt"># Edit: SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_SIGNING_SECRET, MONITORED_CHANNELS</span>
+
+<span class="cmt"># 5. Run</span>
+python3 main.py ingest        <span class="cmt"># embed Slack history locally</span>
+python3 main.py serve         <span class="cmt"># start bot — LLM runs via Ollama on your machine</span></div>
+  </section>
+
+  <!-- ═══════════════════════════ TECH STACK ═══════════════════════════ -->
+  <section>
+    <div class="section-label">Tech Stack</div>
+    <h2>Technology Choices</h2>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">🐍</div>
+        <h3>Python 3.11+</h3>
+        <p>Core language. Type-annotated throughout. No heavy framework needed.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">💬</div>
+        <h3>Slack Bolt</h3>
+        <p>Official Slack SDK for Python. Socket Mode — no public URL required.</p>
+      </div>
+      <div class="card bg-green">
+        <div class="card-icon">🤗</div>
+        <h3 class="green">sentence-transformers</h3>
+        <p>Free HuggingFace models. Local CPU/GPU inference. No API key. Models: MiniLM, BGE, MPNet.</p>
+      </div>
+      <div class="card bg-green">
+        <div class="card-icon">🦙</div>
+        <h3 class="green">Ollama (local LLM)</h3>
+        <p>Free local inference server. Runs Llama 3, Mistral, Gemma, Phi3 on your machine via plain HTTP.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🗄️</div>
+        <h3>ChromaDB</h3>
+        <p>Open-source embedded vector database. HNSW index. Zero infrastructure, persistent on disk.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <h3>Redis (optional)</h3>
+        <p>Cache for repeated queries. Agent works without it — caching gracefully disabled if unavailable.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🐳</div>
+        <h3>Docker + Compose</h3>
+        <p>Containerized deployment with Redis, Prometheus, Grafana included.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h3>Prometheus/Grafana</h3>
+        <p>Optional metrics and dashboards for operational visibility.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="text-align:center; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--border); padding-top: 32px;">
+    Slack AI Support Agent · RAG Architecture · Built with ❤️ for Engineering Teams
+  </footer>
+
+</main>
+</body>
+</html>
